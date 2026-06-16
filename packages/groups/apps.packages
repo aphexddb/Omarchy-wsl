@@ -1,0 +1,23 @@
+# Desktop option group: APPS — large GUI applications.
+#
+# Disable with `--build-arg APPS=0` (only relevant when DESKTOP=1). Every entry
+# is a subset of omarchy/install/omarchy-base.packages; turning the group off
+# removes these from the install set while keeping the rest of the desktop.
+
+1password-beta
+1password-cli
+chromium
+signal-desktop
+spotify
+obsidian
+typora
+libreoffice-fresh
+obs-studio
+kdenlive
+pinta
+xournalpp
+localsend
+evince
+gnome-calculator
+gnome-disk-utility
+claude-code

@@ -1,0 +1,14 @@
+# The upstream Omarchy checkout is NOT vendored in this repo. Fetch it with
+# ./setup-omarchy.ps1 (clones https://github.com/basecamp/omarchy.git into omarchy/).
+/omarchy/
+
+# Built WSL distro images / exported root filesystems (multi-GB, regenerable).
+*.wsl
+*.tar
+*.tar.gz
+*.tgz
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+*.swp

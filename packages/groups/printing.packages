@@ -1,0 +1,11 @@
+# Desktop option group: PRINTING — CUPS printing stack and mDNS discovery.
+#
+# Disable with `--build-arg PRINTING=0`.
+
+cups
+cups-browsed
+cups-filters
+cups-pdf
+system-config-printer
+avahi
+nss-mdns

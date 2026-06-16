@@ -1,0 +1,16 @@
+# Keep the build context lean and reproducible.
+# NOTE: omarchy/.git is intentionally NOT ignored — the Dockerfile regenerates
+# the working tree from git blobs to fix Windows CRLF/exec-bit issues, and
+# keeping .git lets `omarchy update` work inside the distro.
+
+README.md
+build.ps1
+build-distros.ps1
+setup-omarchy.ps1
+export-wsl.ps1
+test.ps1
+.git
+.gitignore
+*.tar
+*.tar.gz
+*.wsl

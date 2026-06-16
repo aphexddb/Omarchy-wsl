@@ -1,0 +1,7 @@
+# Desktop option group: LOGIN — display/login manager and boot splash.
+#
+# These run before/around a graphical login on bare metal and are pointless in
+# WSL (WSL provides its own session). Disable with `--build-arg LOGIN=0`.
+
+sddm
+plymouth

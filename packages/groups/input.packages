@@ -1,0 +1,7 @@
+# Desktop option group: INPUT — fcitx5 input method editors (CJK and friends).
+#
+# Disable with `--build-arg INPUT=0`.
+
+fcitx5
+fcitx5-gtk
+fcitx5-qt

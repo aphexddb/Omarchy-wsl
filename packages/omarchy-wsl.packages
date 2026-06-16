@@ -1,0 +1,72 @@
+# Omarchy WSL — curated package list (default "minimal" profile)
+#
+# This is the terminal-focused subset of install/omarchy-base.packages that
+# makes sense inside a WSL container: the Omarchy CLI tooling, shell experience,
+# theming dependencies, editors, and developer tools. GUI desktop packages
+# (Hyprland, SDDM, Plymouth, Chromium, LibreOffice, OBS, etc.) are intentionally
+# omitted here — build with `--build-arg PROFILE=full` to install the complete
+# install/omarchy-base.packages set instead.
+#
+# Every entry below also appears in install/omarchy-base.packages, so the WSL
+# experience stays faithful to upstream Omarchy.
+
+# --- Omarchy CLI requirements ---
+gum
+expac
+usage
+
+# --- Shell experience ---
+bash-completion
+starship
+zoxide
+fzf
+fastfetch
+tldr
+mise
+
+# --- Core CLI tools ---
+bat
+eza
+fd
+ripgrep
+jq
+less
+man-db
+plocate
+unzip
+whois
+inetutils
+socat
+xmlstarlet
+imagemagick
+libqalculate
+dua-cli
+tmux
+wl-clipboard
+xdg-user-dirs
+xdg-utils
+
+# --- Editors ---
+nvim
+omarchy-nvim
+tree-sitter-cli
+luarocks
+
+# --- Git / containers TUIs ---
+github-cli
+lazygit
+lazydocker
+
+# --- Developer toolchains (match omarchy-base.packages) ---
+clang
+llvm
+rust
+ruby
+
+# --- Fonts for a faithful terminal ---
+ttf-jetbrains-mono-nerd
+noto-fonts
+noto-fonts-emoji
+
+# --- System monitor ---
+btop
