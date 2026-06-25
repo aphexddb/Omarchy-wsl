@@ -57,6 +57,14 @@ github-cli
 lazygit
 lazydocker
 
+# --- AUR helper (ships in the full desktop image; added here for the basic CLI set) ---
+yay
+
+# --- Disk usage ---
+# Upstream Omarchy replaced `dust` with `dua` (dua-cli, above); `dust` is added
+# back here because it is commonly expected. Drop this line to match upstream.
+dust
+
 # --- Developer toolchains (match omarchy-base.packages) ---
 clang
 llvm

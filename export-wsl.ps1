@@ -60,7 +60,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "wslc create failed (exit $LASTEXITCODE)" }
 
   Write-Host "Exporting root filesystem..." -ForegroundColor DarkGray
-  & wslc.exe export $ContainerName $OutFile
+  & wslc.exe export -o $OutFile $ContainerName
   if ($LASTEXITCODE -ne 0) { throw "wslc export failed (exit $LASTEXITCODE)" }
 }
 finally {

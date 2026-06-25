@@ -5,7 +5,7 @@
 
 README.md
 build.ps1
-build-distros.ps1
+build-omarchy.ps1
 setup-omarchy.ps1
 export-wsl.ps1
 test.ps1

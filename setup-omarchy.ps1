@@ -10,7 +10,7 @@
 
   It clones https://github.com/basecamp/omarchy.git into ./omarchy on first run,
   and fast-forwards it to the latest upstream commit on subsequent runs. The
-  Dockerfile relies on the checkout keeping its .git directory (it regenerates
+  Containerfile relies on the checkout keeping its .git directory (it regenerates
   the working tree from git blobs to fix Windows CRLF/exec-bit issues, and
   `omarchy update` uses it inside the distro), so a full clone is used.
 
@@ -88,4 +88,4 @@ Write-Host "`nOmarchy ready at '$dest'" -ForegroundColor Green
 Write-Host "  branch/ref : $branch" -ForegroundColor Green
 Write-Host "  commit     : $commit" -ForegroundColor Green
 Write-Host "  version    : $version" -ForegroundColor Green
-Write-Host "`nNext: ./build-distros.ps1 -Export   (builds both images and writes .wsl files)" -ForegroundColor Green
+Write-Host "`nNext: ./build-omarchy.ps1   (builds Omarchy-Basic.wsl end to end)" -ForegroundColor Green

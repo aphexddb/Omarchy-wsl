@@ -5,10 +5,10 @@
 
 .DESCRIPTION
   Wraps `wslc build`. Run from the repo root (the directory containing the
-  Dockerfile and the cloned `omarchy/` checkout).
+  Containerfile and the cloned `omarchy/` checkout).
 
   By default it builds the FULL Omarchy desktop. Desktop options can be turned
-  off individually with the switches below (each maps to a Dockerfile build arg
+  off individually with the switches below (each maps to a Containerfile build arg
   and a packages/groups/<group>.packages list).
 
 .PARAMETER Tag
@@ -71,7 +71,7 @@ $toggles = [ordered]@{
 $wslcArgs = @("build", "-t", $Tag)
 foreach ($k in $toggles.Keys) { $wslcArgs += "--build-arg", "$k=$($toggles[$k])" }
 if ($NoCache) { $wslcArgs += "--no-cache" }
-$wslcArgs += "-f", (Join-Path $root "Dockerfile"), $root
+$wslcArgs += "-f", (Join-Path $root "Containerfile"), $root
 
 $summary = ($toggles.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join " "
 Write-Host "Building '$Tag' ($summary)..." -ForegroundColor Cyan
