@@ -1,7 +1,9 @@
-# omarchy-wsl
+# Omarchy-wsl
 
 Build an installable **`.wsl`** package for the basic (CLI/TUI) flavour of
 [Omarchy](https://omarchy.org) using [`wslc`](https://learn.microsoft.com/windows/wsl/).
+
+This is a community project.
 
 ## Build
 
