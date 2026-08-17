@@ -1,19 +1,21 @@
 #!/bin/bash
 # Omarchy WSL installer — runs INSIDE the container build (not on bare metal).
 #
-# This is the WSL-adapted counterpart to upstream Omarchy's install.sh. Upstream
-# install.sh targets bare-metal Arch (Limine bootloader, Btrfs root, SDDM,
-# Plymouth, Hyprland, hardware drivers) and its preflight guards refuse to run
-# anywhere else. Inside a WSL container none of that applies, so instead of
-# sourcing install.sh we reuse Omarchy's real assets directly:
+# This is the WSL-adapted counterpart to upstream Omarchy's ISO installer.
+# Upstream targets bare-metal Arch (Limine bootloader, Btrfs root, SDDM,
+# Plymouth, Hyprland, hardware drivers) via omarchy-apply-system/
+# omarchy-provision-user, none of which applies in a container. So instead of
+# calling those, we reuse Omarchy's real assets directly:
 #
-#   * the official [omarchy] pacman repo + omarchy-keyring (install/preflight/pacman.sh)
+#   * the official [omarchy] pacman repo + omarchy-keyring
 #   * the bin/ command suite (omarchy-*, theming, helpers)
-#   * the config/ defaults and default/bash shell environment (install/config/config.sh)
-#   * the theming system (install/config/theme.sh)
+#   * the config/ defaults and default/bash shell environment
+#   * the theming system (omarchy-theme-set)
+#   * install/user/all.sh for the per-user setup steps that make sense here
 #
 # It is meant to be run as the unprivileged `omarchy` user with passwordless
-# sudo, mirroring Omarchy's user-level install model.
+# sudo, mirroring Omarchy's user-level install model. Targets Omarchy 4.x
+# ("Quattro") — see setup-omarchy.ps1 for the version pin.
 
 set -eEo pipefail
 
@@ -54,8 +56,8 @@ WSL_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 log() { echo -e "\e[32m[omarchy-wsl]\e[0m $*"; }
 
 # --- 1. Configure the Omarchy pacman repo + keyring -------------------------
-# Mirrors install/preflight/pacman.sh. Skipped on arm64: ALARM's rootfs
-# already has a working pacman.conf/mirrorlist and no aarch64 [omarchy] db.
+# Skipped on arm64: ALARM's rootfs already has a working pacman.conf/mirrorlist
+# and no aarch64 [omarchy] db.
 if [[ $ARCH == arm64 ]]; then
   log "ARCH=arm64 — using ALARM's own pacman config (no [omarchy] repo on aarch64)"
 else
@@ -147,19 +149,31 @@ build_arm_local_packages() {
 [[ $ARCH == arm64 ]] && build_arm_local_packages
 
 # --- 3. Copy Omarchy configs + shell environment ----------------------------
-# Mirrors install/config/config.sh.
 log "Installing Omarchy configs and bashrc"
 mkdir -p ~/.config
 cp -R "$OMARCHY_PATH/config/"* ~/.config/
-cp "$OMARCHY_PATH/default/bashrc" ~/.bashrc
+# default/bashrc hardcodes /usr/share/omarchy (the packaged install path) to
+# find env-bootstrap — point it at ours, since OMARCHY_PATH is under $HOME
+# here, not /usr/share/omarchy.
+sed "s#/usr/share/omarchy#$OMARCHY_PATH#g" "$OMARCHY_PATH/default/bashrc" > ~/.bashrc
 
-# --- 4. Branding (install/config/branding.sh) -------------------------------
+# env-bootstrap itself also defaults OMARCHY_PATH to /usr/share/omarchy unless
+# /etc/omarchy.conf overrides it (the same mechanism upstream's dev-link mode
+# uses for non-standard checkouts).
+echo "OMARCHY_PATH=$OMARCHY_PATH" | sudo tee /etc/omarchy.conf >/dev/null
+
+# fastfetch's config moved to a system path (/etc/fastfetch/) upstream, owned
+# by the omarchy-settings package we don't build here — install it directly.
+sudo mkdir -p /etc/fastfetch
+sudo cp "$OMARCHY_PATH/etc/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
+
+# --- 4. Branding -------------------------------------------------------------
 log "Installing branding"
 mkdir -p ~/.config/omarchy/branding
 cp "$OMARCHY_PATH/icon.txt" ~/.config/omarchy/branding/about.txt
 cp "$OMARCHY_PATH/logo.txt" ~/.config/omarchy/branding/screensaver.txt
 
-# --- 5. XDG user dirs (install/config/user-dirs.sh, GUI bits skipped) --------
+# --- 5. XDG user dirs --------------------------------------------------------
 log "Creating user directories"
 mkdir -p ~/Downloads ~/Pictures ~/Videos ~/Projects
 if omarchy-cmd-present xdg-user-dirs-update; then
@@ -168,25 +182,47 @@ if omarchy-cmd-present xdg-user-dirs-update; then
   xdg-user-dirs-update --set DESKTOP "$HOME" || true
 fi
 
-# --- 6. Theme (install/config/theme.sh) -------------------------------------
+# --- 6. Theme -----------------------------------------------------------------
+# Theme state now lives under ~/.local/state/omarchy/current/ (moved from
+# ~/.config/omarchy/current/ pre-Quattro).
 log "Setting default theme: Tokyo Night"
-mkdir -p ~/.config/omarchy/themes ~/.config/btop/themes
+mkdir -p ~/.config/omarchy/themes ~/.local/state/omarchy/current ~/.config/btop/themes
 # Restart hooks for compositor apps are no-ops here (nothing is running), so
 # tolerate their absence while still producing the themed config tree.
-omarchy-theme-set "Tokyo Night" || true
-if [[ -f ~/.config/omarchy/current/theme/btop.theme ]]; then
-  ln -snf ~/.config/omarchy/current/theme/btop.theme ~/.config/btop/themes/current.theme
+OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "Tokyo Night" || true
+if [[ -f ~/.local/state/omarchy/current/theme/btop.theme ]]; then
+  ln -snf ~/.local/state/omarchy/current/theme/btop.theme ~/.config/btop/themes/current.theme
 fi
 
-# --- 7. Neovim (install/packaging/nvim.sh) ----------------------------------
+# --- 7. Neovim ---------------------------------------------------------------
+# omarchy-nvim seeds new users via /etc/skel, which useradd already copied for
+# the omarchy user before this script ran; omarchy-nvim-setup just fills in
+# anything still missing (e.g. after the ARM from-source build below).
 if omarchy-cmd-present omarchy-nvim-setup; then
   log "Running omarchy-nvim-setup"
   omarchy-nvim-setup || true
 fi
 
-# --- 8. Mark migrations as already applied ----------------------------------
-# Mirrors install/preflight/migrations.sh so future `omarchy update` runs don't
-# replay historical migrations against a fresh install.
+# --- 8. Per-user setup steps that make sense in WSL -------------------------
+# Mirrors the lightweight parts of install/user/all.sh (theme/nvim/xdg already
+# done above). Skips GUI-only steps, hardware quirks, and mise.sh's AI-agent
+# CLI installs (out of scope for the curated "basic" image; network-heavy).
+log "Running git/default-keyring setup"
+bash -eE "$OMARCHY_INSTALL/user/git.sh"
+bash -eE "$OMARCHY_INSTALL/user/default-keyring.sh"
+
+# xcompose.sh hardcodes /usr/share/omarchy (the packaged install path), which
+# doesn't exist here since OMARCHY_PATH is under $HOME — point it at ours.
+tee ~/.XCompose >/dev/null <<EOF
+# Run omarchy-restart-xcompose to apply changes
+include "$OMARCHY_PATH/default/xcompose"
+<Multi_key> <space> <n> : "$OMARCHY_USER_NAME"
+<Multi_key> <space> <e> : "$OMARCHY_USER_EMAIL"
+EOF
+
+# --- 9. Mark migrations as already applied ----------------------------------
+# So future `omarchy migrate`/`omarchy update` runs don't replay historical
+# migrations against a fresh install.
 log "Marking existing migrations as applied"
 OMARCHY_MIGRATIONS_STATE_PATH=~/.local/state/omarchy/migrations
 mkdir -p "$OMARCHY_MIGRATIONS_STATE_PATH"
@@ -195,7 +231,7 @@ for file in "$OMARCHY_PATH"/migrations/*.sh; do
   touch "$OMARCHY_MIGRATIONS_STATE_PATH/$(basename "$file")"
 done
 
-# --- 9. Clean caches to keep the image small --------------------------------
+# --- 10. Clean caches to keep the image small --------------------------------
 log "Cleaning package cache"
 sudo pacman -Scc --noconfirm || true
 

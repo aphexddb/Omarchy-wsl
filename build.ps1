@@ -63,7 +63,7 @@ param(
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 
-if (-not (Test-Path (Join-Path $root "omarchy\install.sh"))) {
+if (-not (Test-Path (Join-Path $root "omarchy\install"))) {
   throw "Cannot find the Omarchy checkout at '$root\omarchy'. Set it up first: ./setup-omarchy.ps1"
 }
 

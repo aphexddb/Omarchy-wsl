@@ -19,7 +19,7 @@
   Destination .wsl path. Default: Omarchy-Basic.wsl in the repo root.
 
 .PARAMETER Ref
-  Branch, tag, or commit of Omarchy to check out. Default: v3.8.4 (see
+  Branch, tag, or commit of Omarchy to check out. Default: v4.0.0 (see
   setup-omarchy.ps1 -Ref for why).
 
 .PARAMETER Arch

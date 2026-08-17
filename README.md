@@ -11,7 +11,7 @@ This is a community project.
 ./build-omarchy.ps1
 ```
 
-This fetches the upstream Omarchy sources into `omarchy/` (pinned to `v3.8.4` —
+This fetches the upstream Omarchy sources into `omarchy/` (pinned to `v4.0.0` —
 see "Upstream version" below), builds the curated CLI image for your host's
 CPU architecture, and exports `Omarchy-Basic.wsl`.
 
@@ -41,10 +41,9 @@ See `install/omarchy-wsl-install.sh` for details.
 
 ## Upstream version
 
-`setup-omarchy.ps1` pins the Omarchy checkout to **`v3.8.4`** by default —
-upstream's current default branch restructured `install/` in a way that's
-incompatible with `omarchy-wsl-install.sh`. Pass `-Ref` to override, but
-re-verify the installer against that layout first.
+`setup-omarchy.ps1` pins the Omarchy checkout to **`v4.0.0`** ("Quattro") by
+default. Pass `-Ref` to override, but re-verify the installer against that
+layout first — upstream has restructured `install/` before between releases.
 
 ## Requirements
 

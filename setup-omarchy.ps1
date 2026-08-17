@@ -18,16 +18,15 @@
   Git URL to clone from. Default: https://github.com/basecamp/omarchy.git
 
 .PARAMETER Ref
-  Branch, tag, or commit to check out. Default: v3.8.4 — the last release
-  matching the directory layout omarchy-wsl-install.sh expects; upstream's
-  current default branch restructured install/ and will break the build.
+  Branch, tag, or commit to check out. Default: v4.0.0 ("Quattro") — the
+  release matching the directory layout omarchy-wsl-install.sh expects.
   Re-verify the installer before pinning to a newer -Ref.
 
 .PARAMETER Force
   Delete any existing ./omarchy checkout and clone it fresh.
 
 .EXAMPLE
-  ./setup-omarchy.ps1                 # clone or update to the pinned v3.8.4
+  ./setup-omarchy.ps1                 # clone or update to the pinned v4.0.0
 
 .EXAMPLE
   ./setup-omarchy.ps1 -Ref v3.4.2     # pin to a different tag
@@ -38,7 +37,7 @@
 [CmdletBinding()]
 param(
   [string]$Repo = "https://github.com/basecamp/omarchy.git",
-  [string]$Ref = "v3.8.4",
+  [string]$Ref = "v4.0.0",
   [switch]$Force
 )
 
@@ -79,8 +78,8 @@ if (Test-Path (Join-Path $dest ".git")) {
   else { Invoke-Git clone $Repo $dest }
 }
 
-if (-not (Test-Path (Join-Path $dest "install.sh"))) {
-  throw "Checkout completed but '$dest\install.sh' is missing — is '$Repo' the Omarchy repo?"
+if (-not (Test-Path (Join-Path $dest "install"))) {
+  throw "Checkout completed but '$dest\install' is missing — is '$Repo' the Omarchy repo?"
 }
 
 $commit = (& git -C $dest rev-parse --short HEAD).Trim()
