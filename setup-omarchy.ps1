@@ -18,16 +18,19 @@
   Git URL to clone from. Default: https://github.com/basecamp/omarchy.git
 
 .PARAMETER Ref
-  Branch, tag, or commit to check out. Default: the repository's default branch.
+  Branch, tag, or commit to check out. Default: v3.8.4 — the last release
+  matching the directory layout omarchy-wsl-install.sh expects; upstream's
+  current default branch restructured install/ and will break the build.
+  Re-verify the installer before pinning to a newer -Ref.
 
 .PARAMETER Force
   Delete any existing ./omarchy checkout and clone it fresh.
 
 .EXAMPLE
-  ./setup-omarchy.ps1                 # clone or update to the latest upstream
+  ./setup-omarchy.ps1                 # clone or update to the pinned v3.8.4
 
 .EXAMPLE
-  ./setup-omarchy.ps1 -Ref v3.4.2     # pin to a specific tag
+  ./setup-omarchy.ps1 -Ref v3.4.2     # pin to a different tag
 
 .EXAMPLE
   ./setup-omarchy.ps1 -Force          # nuke and re-clone
@@ -35,7 +38,7 @@
 [CmdletBinding()]
 param(
   [string]$Repo = "https://github.com/basecamp/omarchy.git",
-  [string]$Ref,
+  [string]$Ref = "v3.8.4",
   [switch]$Force
 )
 

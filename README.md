@@ -11,8 +11,9 @@ This is a community project.
 ./build-omarchy.ps1
 ```
 
-This fetches the upstream Omarchy sources into `omarchy/`, builds the curated CLI
-image, and exports `Omarchy-Basic.wsl`.
+This fetches the upstream Omarchy sources into `omarchy/` (pinned to `v3.8.4` —
+see "Upstream version" below), builds the curated CLI image for your host's
+CPU architecture, and exports `Omarchy-Basic.wsl`.
 
 ## Install
 
@@ -24,6 +25,26 @@ wsl -d Omarchy
 You land in a login shell as the `omarchy` user with the Omarchy command suite,
 Tokyo Night theming, and the headline CLI tools (`bat`, `eza`, `fzf`, `rg`,
 `lazygit`, `nvim`, `btop`, …).
+
+## Architecture support (amd64 / arm64)
+
+Both x86_64 (`amd64`) and ARM64 (`arm64`) are supported. `build.ps1` (and
+`build-omarchy.ps1`) auto-detect the host architecture; override with
+`-Arch amd64` / `-Arch arm64` if needed. wslc can't cross-build, so build on
+the target architecture.
+
+Upstream Arch's Docker image and Omarchy's `[omarchy]` pacman repo are both
+x86_64-only, so the arm64 build boots from the official
+[Arch Linux ARM](https://archlinuxarm.org) rootfs instead, and builds the few
+packages missing from its repos (`omarchy-nvim`, `yay`, `mise`) from source.
+See `install/omarchy-wsl-install.sh` for details.
+
+## Upstream version
+
+`setup-omarchy.ps1` pins the Omarchy checkout to **`v3.8.4`** by default —
+upstream's current default branch restructured `install/` in a way that's
+incompatible with `omarchy-wsl-install.sh`. Pass `-Ref` to override, but
+re-verify the installer against that layout first.
 
 ## Requirements
 

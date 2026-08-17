@@ -47,7 +47,7 @@ xdg-user-dirs
 xdg-utils
 
 # --- Editors ---
-nvim
+neovim
 omarchy-nvim
 tree-sitter-cli
 luarocks

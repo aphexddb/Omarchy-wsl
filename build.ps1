@@ -14,6 +14,12 @@
 .PARAMETER Tag
   Image tag to produce. Default: omarchy:latest
 
+.PARAMETER Arch
+  Target architecture: amd64 or arm64. Defaults to the host's architecture.
+  amd64 builds FROM archlinux:latest; arm64 builds FROM the Arch Linux ARM
+  (ALARM) rootfs, since Arch's own images and the [omarchy] pacman repo are
+  x86_64-only. See README.md.
+
 .PARAMETER NoDesktop
   Build a curated CLI-only image (DESKTOP=0): no Hyprland desktop.
 
@@ -44,6 +50,8 @@
 [CmdletBinding()]
 param(
   [string]$Tag = "omarchy:latest",
+  [ValidateSet("amd64", "arm64")]
+  [string]$Arch,
   [switch]$NoDesktop,
   [switch]$NoApps,
   [switch]$NoLogin,
@@ -59,6 +67,11 @@ if (-not (Test-Path (Join-Path $root "omarchy\install.sh"))) {
   throw "Cannot find the Omarchy checkout at '$root\omarchy'. Set it up first: ./setup-omarchy.ps1"
 }
 
+# Default to the host's architecture (wslc can't cross-build).
+if (-not $Arch) {
+  $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
+}
+
 # Map switches to 0/1 build args (default 1 = enabled).
 $toggles = [ordered]@{
   DESKTOP  = if ($NoDesktop)  { 0 } else { 1 }
@@ -68,13 +81,13 @@ $toggles = [ordered]@{
   INPUT    = if ($NoInput)    { 0 } else { 1 }
 }
 
-$wslcArgs = @("build", "-t", $Tag)
+$wslcArgs = @("build", "-t", $Tag, "--build-arg", "ARCH=$Arch")
 foreach ($k in $toggles.Keys) { $wslcArgs += "--build-arg", "$k=$($toggles[$k])" }
 if ($NoCache) { $wslcArgs += "--no-cache" }
 $wslcArgs += "-f", (Join-Path $root "Containerfile"), $root
 
 $summary = ($toggles.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join " "
-Write-Host "Building '$Tag' ($summary)..." -ForegroundColor Cyan
+Write-Host "Building '$Tag' (ARCH=$Arch $summary)..." -ForegroundColor Cyan
 Write-Host "wslc $($wslcArgs -join ' ')" -ForegroundColor DarkGray
 
 & wslc.exe @wslcArgs

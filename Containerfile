@@ -12,8 +12,27 @@
 # preconfigured for WSL (systemd on, default user `omarchy`). It does NOT run
 # upstream install.sh, whose preflight guards require bare-metal Arch with
 # Limine/Btrfs/SDDM/Plymouth — none of which exist in a container. See README.md.
+#
+# ARCH=amd64 (default, archlinux:latest) or ARCH=arm64 (Arch Linux ARM rootfs,
+# since archlinux:latest and the [omarchy] pacman repo are x86_64-only). See
+# omarchy-wsl-install.sh for the arm64-specific install branch.
+ARG ARCH=amd64
 
-FROM archlinux:latest
+FROM archlinux:latest AS base-amd64
+
+# Alpine has real arm64 builds; use it to fetch+extract the ALARM rootfs, then
+# hand the tree to a clean `scratch` stage.
+FROM alpine:latest AS arm64-rootfs
+RUN apk add --no-cache curl && \
+    curl -fL -o /tmp/rootfs.tar.gz http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz && \
+    mkdir /rootfs && tar --numeric-owner -xpzf /tmp/rootfs.tar.gz -C /rootfs && \
+    rm -f /tmp/rootfs.tar.gz
+
+FROM scratch AS base-arm64
+COPY --from=arm64-rootfs /rootfs/ /
+
+FROM base-${ARCH} AS base
+ARG ARCH
 
 # --- Desktop feature toggles (build args, default = full desktop) ------------
 # Set any to 0 to slim the image. DESKTOP is the master switch; the rest only
@@ -31,15 +50,33 @@ ARG INPUT=1
 ARG USERNAME=omarchy
 
 # --- 1. Base prerequisites + pacman keyring (root) --------------------------
-RUN pacman-key --init && \
-    pacman-key --populate archlinux && \
-    pacman -Sy --noconfirm --needed archlinux-keyring && \
+# arm64 uses ALARM's own keyring/repos; its rootfs already ships a working
+# pacman.conf/mirrorlist so those are left untouched.
+#
+# Both base images ship `DownloadUser = alpm`, which drops pacman into a
+# Landlock sandbox that's blocked in unprivileged container builds — disable
+# it before the first `pacman -Sy`.
+RUN sed -i 's/^DownloadUser/#DownloadUser/' /etc/pacman.conf && \
+    grep -q '^DisableSandbox' /etc/pacman.conf || \
+      sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
+RUN if [ "$ARCH" = "arm64" ]; then \
+      pacman-key --init && \
+      pacman-key --populate archlinuxarm && \
+      pacman -Sy --noconfirm --needed archlinuxarm-keyring; \
+    else \
+      pacman-key --init && \
+      pacman-key --populate archlinux && \
+      pacman -Sy --noconfirm --needed archlinux-keyring; \
+    fi && \
     pacman -S --noconfirm --needed base-devel git sudo && \
     pacman -Scc --noconfirm
 
 # --- 2. Default `omarchy` user with passwordless sudo -----------------------
-# Mirrors Omarchy's user-level install model (it refuses to run as root).
-RUN useradd -m -G wheel -s /bin/bash "$USERNAME" && \
+# ALARM's rootfs ships a preexisting `alarm` user at uid 1000 — remove it
+# first so `omarchy` gets uid 1000 (required by wsl-distribution.conf's
+# defaultUid, or WSL's OOBE signs in as `alarm` instead).
+RUN if id -u alarm >/dev/null 2>&1; then userdel -r alarm 2>/dev/null || userdel alarm; fi && \
+    useradd -m -u 1000 -G wheel -s /bin/bash "$USERNAME" && \
     passwd -d "$USERNAME" && \
     echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-omarchy-wsl && \
     chmod 0440 /etc/sudoers.d/99-omarchy-wsl
@@ -65,7 +102,7 @@ RUN git config --global --add safe.directory /home/$USERNAME/.local/share/omarch
 # --- 5. Run the WSL-adapted Omarchy installer as the omarchy user -----------
 USER $USERNAME
 WORKDIR /home/$USERNAME
-RUN DESKTOP="$DESKTOP" APPS="$APPS" LOGIN="$LOGIN" PRINTING="$PRINTING" INPUT="$INPUT" \
+RUN DESKTOP="$DESKTOP" APPS="$APPS" LOGIN="$LOGIN" PRINTING="$PRINTING" INPUT="$INPUT" ARCH="$ARCH" \
     bash /home/$USERNAME/omarchy-wsl/install/omarchy-wsl-install.sh
 
 # --- 6. WSL configuration ---------------------------------------------------

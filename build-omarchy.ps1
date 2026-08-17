@@ -19,7 +19,12 @@
   Destination .wsl path. Default: Omarchy-Basic.wsl in the repo root.
 
 .PARAMETER Ref
-  Branch, tag, or commit of Omarchy to check out. Default: the repo's default branch.
+  Branch, tag, or commit of Omarchy to check out. Default: v3.8.4 (see
+  setup-omarchy.ps1 -Ref for why).
+
+.PARAMETER Arch
+  Target architecture: amd64 or arm64. Defaults to the host's architecture
+  (see build.ps1 -Arch).
 
 .PARAMETER NoCache
   Build the image without the layer cache.
@@ -41,6 +46,8 @@ param(
   [string]$Tag = "omarchy:basic",
   [string]$OutFile,
   [string]$Ref,
+  [ValidateSet("amd64", "arm64")]
+  [string]$Arch,
   [switch]$NoCache,
   [switch]$SkipSetup
 )
@@ -67,7 +74,8 @@ if (-not $SkipSetup) {
 }
 
 Write-Host "`n=== Step 2/3: Building basic CLI image '$Tag' ===" -ForegroundColor Cyan
-& $buildScript -Tag $Tag -NoDesktop -NoCache:$NoCache
+if ($Arch) { & $buildScript -Tag $Tag -Arch $Arch -NoDesktop -NoCache:$NoCache }
+else { & $buildScript -Tag $Tag -NoDesktop -NoCache:$NoCache }
 if ($LASTEXITCODE -ne 0) { throw "Basic build failed (exit $LASTEXITCODE)." }
 
 Write-Host "`n=== Step 3/3: Exporting '$Tag' -> '$OutFile' ===" -ForegroundColor Cyan

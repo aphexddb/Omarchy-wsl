@@ -31,6 +31,11 @@ LOGIN="${LOGIN:-1}"
 PRINTING="${PRINTING:-1}"
 INPUT="${INPUT:-1}"
 
+# ARCH: amd64 (default) or arm64. On arm64 the base is Arch Linux ARM (ALARM),
+# whose repos don't include the [omarchy] repo, so that's skipped and its
+# packages are built from source instead (see ARM_LOCAL_PACKAGES below).
+ARCH="${ARCH:-amd64}"
+
 export OMARCHY_PATH="$HOME/.local/share/omarchy"
 export OMARCHY_INSTALL="$OMARCHY_PATH/install"
 export OMARCHY_MIRROR="stable"
@@ -49,28 +54,30 @@ WSL_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 log() { echo -e "\e[32m[omarchy-wsl]\e[0m $*"; }
 
 # --- 1. Configure the Omarchy pacman repo + keyring -------------------------
-# Mirrors install/preflight/pacman.sh (the OMARCHY_ONLINE_INSTALL branch).
-log "Configuring Omarchy pacman repository and keyring"
+# Mirrors install/preflight/pacman.sh. Skipped on arm64: ALARM's rootfs
+# already has a working pacman.conf/mirrorlist and no aarch64 [omarchy] db.
+if [[ $ARCH == arm64 ]]; then
+  log "ARCH=arm64 — using ALARM's own pacman config (no [omarchy] repo on aarch64)"
+else
+  log "Configuring Omarchy pacman repository and keyring"
 
-sudo cp -f "$OMARCHY_PATH/default/pacman/pacman-${OMARCHY_MIRROR}.conf" /etc/pacman.conf
-sudo cp -f "$OMARCHY_PATH/default/pacman/mirrorlist-${OMARCHY_MIRROR}" /etc/pacman.d/mirrorlist
+  sudo cp -f "$OMARCHY_PATH/default/pacman/pacman-${OMARCHY_MIRROR}.conf" /etc/pacman.conf
+  sudo cp -f "$OMARCHY_PATH/default/pacman/mirrorlist-${OMARCHY_MIRROR}" /etc/pacman.d/mirrorlist
 
-# Container adaptation: Omarchy's pacman.conf sets `DownloadUser = alpm`, which
-# makes pacman drop privileges into a Landlock sandbox. That syscall is blocked
-# inside an unprivileged container build ("Landlock ruleset could not be
-# applied"), so disable the download sandbox here. On real hardware the upstream
-# sandboxed download still applies.
+  sudo pacman-key --recv-keys 40DFB630FF42BCFFB047046CF0134EE680CAC571 --keyserver keys.openpgp.org
+  sudo pacman-key --lsign-key 40DFB630FF42BCFFB047046CF0134EE680CAC571
+
+  sudo pacman -Sy --noconfirm
+  sudo pacman -S --noconfirm --needed --overwrite '*' omarchy-keyring
+fi
+
+# Container adaptation: disable pacman's Landlock download sandbox (blocked
+# in unprivileged builds). No-op if the directive is absent.
 sudo sed -i 's/^DownloadUser/#DownloadUser/' /etc/pacman.conf
 sudo grep -q '^DisableSandbox' /etc/pacman.conf || \
   sudo sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
 
-sudo pacman-key --recv-keys 40DFB630FF42BCFFB047046CF0134EE680CAC571 --keyserver keys.openpgp.org
-sudo pacman-key --lsign-key 40DFB630FF42BCFFB047046CF0134EE680CAC571
-
-sudo pacman -Sy --noconfirm
-sudo pacman -S --noconfirm --needed --overwrite '*' omarchy-keyring
-
-# Full sync/upgrade against the Omarchy mirror so versions match upstream.
+# Full sync/upgrade so versions match the configured mirror.
 sudo pacman -Syyuu --noconfirm
 
 # --- 2. Install packages ----------------------------------------------------
@@ -102,9 +109,42 @@ else
   log "DESKTOP=0 — installing curated CLI package set only"
 fi
 
+# On arm64, these packages aren't resolvable from any configured repo
+# (omarchy-nvim is only in the x86_64-only [omarchy] repo; yay/mise aren't in
+# ALARM's core/extra). pacman -S fails outright if any target is unresolvable,
+# so pull these out and build+install from source afterwards.
+ARM_LOCAL_PACKAGES=(omarchy-nvim yay mise)
+if [[ $ARCH == arm64 ]]; then
+  for p in "${ARM_LOCAL_PACKAGES[@]}"; do
+    if [[ -n ${want[$p]:-} ]]; then
+      log "ARCH=arm64 — deferring '$p' to a from-source build"
+      unset "want[$p]"
+    fi
+  done
+fi
+
 mapfile -t packages < <(printf '%s\n' "${!want[@]}" | sort)
 log "Installing ${#packages[@]} packages: ${packages[*]}"
 omarchy-pkg-add "${packages[@]}"
+
+# --- 2b. Build arm64-only packages from source ------------------------------
+build_arm_local_packages() {
+  local build_root
+  build_root="$(mktemp -d)"
+
+  log "Building omarchy-nvim from source (omacom-io/omarchy-pkgs)"
+  git clone --depth 1 https://github.com/omacom-io/omarchy-pkgs.git "$build_root/omarchy-pkgs"
+  (cd "$build_root/omarchy-pkgs/pkgbuilds/omarchy-nvim" && makepkg -si --noconfirm)
+
+  for aur_pkg in yay-bin mise-bin; do
+    log "Building $aur_pkg from AUR"
+    git clone --depth 1 "https://aur.archlinux.org/${aur_pkg}.git" "$build_root/$aur_pkg"
+    (cd "$build_root/$aur_pkg" && makepkg -si --noconfirm)
+  done
+
+  rm -rf "$build_root"
+}
+[[ $ARCH == arm64 ]] && build_arm_local_packages
 
 # --- 3. Copy Omarchy configs + shell environment ----------------------------
 # Mirrors install/config/config.sh.
