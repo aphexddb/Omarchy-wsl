@@ -36,7 +36,12 @@ param(
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 
-if (-not (Get-Command wslc.exe -ErrorAction SilentlyContinue)) {
+$wslc = (Get-Command wslc.exe -ErrorAction SilentlyContinue).Source
+if (-not $wslc) {
+  $candidate = Join-Path $env:ProgramFiles "WSL\wslc.exe"
+  if (Test-Path $candidate) { $wslc = $candidate }
+}
+if (-not $wslc) {
   throw "wslc.exe was not found on PATH. Install the WSL container CLI first."
 }
 
@@ -50,21 +55,31 @@ if (-not $ContainerName) {
   $ContainerName = ($Image -replace '[:/]', '-') + "-export"
 }
 
+# wslc writes "not found" to stderr. With $ErrorActionPreference Stop, that
+# becomes a terminating NativeCommandError even when redirected with 2>$null.
+function Remove-WslcContainer {
+  param([string]$Name)
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "SilentlyContinue"
+  try { & $wslc rm --force $Name 2>&1 | Out-Null } catch { }
+  finally { $ErrorActionPreference = $prev }
+}
+
 # Clean up any leftover container with this name from a previous run.
-& wslc.exe rm $ContainerName 2>$null | Out-Null
+Remove-WslcContainer $ContainerName
 
 Write-Host "Exporting image '$Image' -> '$OutFile'" -ForegroundColor Cyan
 try {
   Write-Host "Creating export container '$ContainerName'..." -ForegroundColor DarkGray
-  & wslc.exe create --name $ContainerName $Image
+  & $wslc create --name $ContainerName $Image
   if ($LASTEXITCODE -ne 0) { throw "wslc create failed (exit $LASTEXITCODE)" }
 
   Write-Host "Exporting root filesystem..." -ForegroundColor DarkGray
-  & wslc.exe export -o $OutFile $ContainerName
+  & $wslc export -o $OutFile $ContainerName
   if ($LASTEXITCODE -ne 0) { throw "wslc export failed (exit $LASTEXITCODE)" }
 }
 finally {
-  & wslc.exe rm $ContainerName 2>$null | Out-Null
+  Remove-WslcContainer $ContainerName
 }
 
 $size = [math]::Round((Get-Item $OutFile).Length / 1GB, 2)

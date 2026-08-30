@@ -18,7 +18,7 @@
   Git URL to clone from. Default: https://github.com/basecamp/omarchy.git
 
 .PARAMETER Ref
-  Branch, tag, or commit to check out. Default: v4.0.0 ("Quattro") — the
+  Branch, tag, or commit to check out. Default: v4.0.0 ("Quattro") - the
   release matching the directory layout omarchy-wsl-install.sh expects.
   Re-verify the installer before pinning to a newer -Ref.
 
@@ -79,7 +79,7 @@ if (Test-Path (Join-Path $dest ".git")) {
 }
 
 if (-not (Test-Path (Join-Path $dest "install"))) {
-  throw "Checkout completed but '$dest\install' is missing — is '$Repo' the Omarchy repo?"
+  throw "Checkout completed but '$dest\install' is missing - is '$Repo' the Omarchy repo?"
 }
 
 $commit = (& git -C $dest rev-parse --short HEAD).Trim()

@@ -24,7 +24,7 @@
   Build a curated CLI-only image (DESKTOP=0): no Hyprland desktop.
 
 .PARAMETER NoApps
-  Skip large GUI apps (browser, office, media editors, chat, …). APPS=0
+  Skip large GUI apps (browser, office, media editors, chat, ...). APPS=0
 
 .PARAMETER NoLogin
   Skip the login manager + boot splash (sddm, plymouth). LOGIN=0
