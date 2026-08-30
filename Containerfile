@@ -69,7 +69,7 @@ RUN if [ "$ARCH" = "arm64" ]; then \
       pacman -Sy --noconfirm --needed archlinux-keyring; \
     fi && \
     pacman -S --noconfirm --needed base-devel git sudo && \
-    pacman -Scc --noconfirm
+    rm -rf /var/cache/pacman/pkg/*
 
 # --- 2. Default `omarchy` user with passwordless sudo -----------------------
 # ALARM's rootfs ships a preexisting `alarm` user at uid 1000 — remove it

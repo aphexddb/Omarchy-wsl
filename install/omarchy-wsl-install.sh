@@ -55,6 +55,17 @@ WSL_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 log() { echo -e "\e[32m[omarchy-wsl]\e[0m $*"; }
 
+# Pacman's DownloadUser=alpm Landlock sandbox is blocked in unprivileged
+# container builds (wslc). Must re-apply after any overwrite of pacman.conf.
+disable_pacman_sandbox() {
+  sudo sed -i \
+    -e 's/^[[:space:]]*DownloadUser/#DownloadUser/' \
+    -e 's/^[[:space:]]*#DisableSandbox/DisableSandbox/' \
+    /etc/pacman.conf
+  sudo grep -qE '^[[:space:]]*DisableSandbox([[:space:]]|$)' /etc/pacman.conf || \
+    sudo sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
+}
+
 # --- 1. Configure the Omarchy pacman repo + keyring -------------------------
 # Skipped on arm64: ALARM's rootfs already has a working pacman.conf/mirrorlist
 # and no aarch64 [omarchy] db.
@@ -65,22 +76,22 @@ else
 
   sudo cp -f "$OMARCHY_PATH/default/pacman/pacman-${OMARCHY_MIRROR}.conf" /etc/pacman.conf
   sudo cp -f "$OMARCHY_PATH/default/pacman/mirrorlist-${OMARCHY_MIRROR}" /etc/pacman.d/mirrorlist
+  # Omarchy's pacman.conf reintroduces DownloadUser=alpm. Disable the sandbox
+  # BEFORE the first -Sy or the sync fails with Landlock EPERM.
+  disable_pacman_sandbox
 
   sudo pacman-key --recv-keys 40DFB630FF42BCFFB047046CF0134EE680CAC571 --keyserver keys.openpgp.org
   sudo pacman-key --lsign-key 40DFB630FF42BCFFB047046CF0134EE680CAC571
 
-  sudo pacman -Sy --noconfirm
-  sudo pacman -S --noconfirm --needed --overwrite '*' omarchy-keyring
+  sudo pacman -Sy --noconfirm --disable-sandbox
+  sudo pacman -S --noconfirm --disable-sandbox --needed --overwrite '*' omarchy-keyring
 fi
 
-# Container adaptation: disable pacman's Landlock download sandbox (blocked
-# in unprivileged builds). No-op if the directive is absent.
-sudo sed -i 's/^DownloadUser/#DownloadUser/' /etc/pacman.conf
-sudo grep -q '^DisableSandbox' /etc/pacman.conf || \
-  sudo sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
+# Arm64 path never overwrote pacman.conf; still make sure the sandbox is off.
+disable_pacman_sandbox
 
 # Full sync/upgrade so versions match the configured mirror.
-sudo pacman -Syyuu --noconfirm
+sudo pacman -Syyuu --noconfirm --disable-sandbox
 
 # --- 2. Install packages ----------------------------------------------------
 # The package set is composed from:
